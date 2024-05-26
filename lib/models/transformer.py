@@ -34,13 +34,14 @@ class TransformerEncoderLayer(nn.Module):
 
 
 class ContactFormer(nn.Module):
-    def __init__(self):
+    def __init__(self, num_layers=4, text_embed_dim=512):
         super().__init__()
         self.human_fc_in = nn.Linear(2048, 256)
         self.object_fc_in = nn.Linear(2048, 256)
+        self.text_fc_in = nn.Linear(text_embed_dim, 256)
         self.CA_Transformer_human, self.CA_Transformer_object = [], []
-        self.num_layers = 4
-        self.dim = 256+3
+        self.num_layers = num_layers
+        self.dim = 256 + 3
 
         for i in range(self.num_layers):
             transformer_layer = TransformerEncoderLayer(d_model=self.dim, nhead=1, dim_feedforward=self.dim, kdim=self.dim, vdim=self.dim)
@@ -55,14 +56,22 @@ class ContactFormer(nn.Module):
     def init_weights(self):
         self.apply(init_weights)
         
-    def forward(self, human_kps, object_kps, human_tokens, object_tokens):
-        human_tokens, object_tokens = self.human_fc_in(human_tokens), self.object_fc_in(object_tokens)
+    def forward(self, human_kps, object_kps, human_tokens, object_tokens, text_tokens):
+        human_tokens = self.human_fc_in(human_tokens)
+        object_tokens = self.object_fc_in(object_tokens)
+        text_tokens = self.text_fc_in(text_tokens)
+        
         human_tokens, object_tokens = torch.cat((human_tokens, human_kps), -1), torch.cat((object_tokens, object_kps), -1)
         contact_human_tokens, contact_object_tokens = human_tokens.clone(), object_tokens.clone()
 
         for i in range(self.num_layers):
-            contact_human_tokens_ = self.CA_Transformer_human[i](contact_human_tokens, contact_object_tokens, contact_object_tokens)
-            contact_object_tokens_ = self.CA_Transformer_object[i](contact_object_tokens, contact_human_tokens, contact_human_tokens)
+            if i % 2 == 0:  # 0-indexed, so 1st and 3rd layers (2nd and 4th human view)
+                contact_human_tokens_ = self.CA_Transformer_human[i](contact_human_tokens, contact_object_tokens, contact_object_tokens)
+                contact_object_tokens_ = self.CA_Transformer_object[i](contact_object_tokens, contact_human_tokens, contact_human_tokens)
+            else:  # 2nd and 4th layers (3rd and 5th human view)
+                contact_human_tokens_ = self.CA_Transformer_human[i](contact_human_tokens, text_tokens, text_tokens)
+                contact_object_tokens_ = self.CA_Transformer_object[i](contact_object_tokens, text_tokens, text_tokens)
+            
             contact_human_tokens, contact_object_tokens = contact_human_tokens_, contact_object_tokens_
             
         h_contacts = self.fc_out_human(contact_human_tokens)[:,:,0].sigmoid()
