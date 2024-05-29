@@ -34,20 +34,25 @@ class TransformerEncoderLayer(nn.Module):
 
 
 class ContactFormer(nn.Module):
-    def __init__(self, num_layers=4, text_embed_dim=512):
+    def __init__(self, num_layers=4):
         super().__init__()
         self.human_fc_in = nn.Linear(2048, 256)
         self.object_fc_in = nn.Linear(2048, 256)
-        self.text_fc_in = nn.Linear(text_embed_dim, 256)
+        self.text_fc_in = nn.Linear(512, 256)
         self.CA_Transformer_human, self.CA_Transformer_object = [], []
         self.num_layers = num_layers
         self.dim = 256 + 3
 
         for i in range(self.num_layers):
-            transformer_layer = TransformerEncoderLayer(d_model=self.dim, nhead=1, dim_feedforward=self.dim, kdim=self.dim, vdim=self.dim)
+            if i % 2 == 0:
+                transformer_layer = TransformerEncoderLayer(d_model=self.dim, nhead=1, dim_feedforward=self.dim, kdim=self.dim, vdim=self.dim)
+                transformer_layer = TransformerEncoderLayer(d_model=self.dim, nhead=1, dim_feedforward=self.dim, kdim=self.dim, vdim=self.dim)
+            else:
+                transformer_layer = TransformerEncoderLayer(d_model=self.dim, nhead=1, dim_feedforward=self.dim, kdim=256, vdim=256)
+                transformer_layer = TransformerEncoderLayer(d_model=self.dim, nhead=1, dim_feedforward=self.dim, kdim=256, vdim=256)
             self.CA_Transformer_human.append(transformer_layer)
-            transformer_layer = TransformerEncoderLayer(d_model=self.dim, nhead=1, dim_feedforward=self.dim, kdim=self.dim, vdim=self.dim)
             self.CA_Transformer_object.append(transformer_layer)
+            
         self.CA_Transformer_human = nn.ModuleList(self.CA_Transformer_human)
         self.CA_Transformer_object = nn.ModuleList(self.CA_Transformer_object)
         self.fc_out_human = nn.Linear(self.dim, 1)

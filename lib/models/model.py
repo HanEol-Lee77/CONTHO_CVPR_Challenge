@@ -6,18 +6,16 @@ from core.config import cfg
 from models.module import Hand4Whole, ObjectRegressor
 from models.transformer import ContactFormer, CRFormer
 from models.templates import smplh, obj_dict
-from models.text_encoder import TextEncoder
 from funcs_utils import rot6d_to_aa, rot6d_to_rotmat, sample_joint_features, rigid_transform_3D
 
 
 class CONTHO(nn.Module):
     def __init__(self):
         super(CONTHO, self).__init__()
-        self.text_encoder = TextEncoder() ## ADDED
-        
+
         self.hand4whole = Hand4Whole() 
         self.objregressor = ObjectRegressor()
-        self.contactformer = ContactFormer(num_layers=4, text_embed_dim=self.text_encoder.out_dim)
+        self.contactformer = ContactFormer(num_layers=4)
         self.crformer = CRFormer()
         self.smplh_layer = copy.deepcopy(smplh.layer['neutral'])
 
@@ -66,7 +64,7 @@ class CONTHO(nn.Module):
         obj_coord_xy = (obj_verts_proj[...,:2].detach() + 0.5) * img_feat.shape[-1]
         obj_feat = sample_joint_features(img_feat, obj_coord_xy)
 
-        text_embedding = self.text_encoder(inputs['prompt']) ## ADDED
+        text_embedding = inputs['text_embedding'].squeeze()
 
         # ContactFormer
         human_tokens, object_tokens, h_contacts, o_contacts = self.contactformer(human_verts.detach(), obj_verts.detach(), human_feat, obj_feat, text_embedding)

@@ -10,18 +10,20 @@ parser.add_argument('--gpu', type=str, default='0,1', help='assign multi-gpus by
 parser.add_argument('--dataset', type=str, default='behave', choices=['behave', 'intercap'], help='dataset')
 parser.add_argument('--exp', type=str, default='', help='assign experiments directory')
 parser.add_argument('--checkpoint', type=str, default='', help='model path for resuming')
+parser.add_argument('--batch_size', type=int, default=16, help='batch size for training')
 
 
 # Organize arguments
 args = parser.parse_args()
 update_config(dataset_name=args.dataset.lower(), exp_dir=args.exp, ckpt_path=args.checkpoint)
 
+cfg.TRAIN.batch_size = args.batch_size
+
 from core.config import logger
 os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
 logger.info(f"Work on GPU: {os.environ['CUDA_VISIBLE_DEVICES']}")
 logger.info(f"Args: {args}")
 logger.info(f"Cfg: {cfg}")
-
 
 # Prepare trainer and tester
 from core.base import Trainer, Tester

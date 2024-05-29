@@ -10,7 +10,7 @@ class TextEncoder(nn.Module):
         
         self.model = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32")
         self.tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-base-patch32")
-        self.out_dim = self.model.text_model.final_layer_norm.normalized_shape
+        self.out_dim = self.model.text_model.final_layer_norm.normalized_shape[0]
 
     def forward(self, x: str) -> torch.Tensor:
         x = self.tokenizer(

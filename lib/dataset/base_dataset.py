@@ -9,6 +9,32 @@ from models.templates import smplh, obj_dict
 from funcs_utils import load_img, get_bbox, batch_rodrigues, transform_joint_to_other_db
 from aug_utils import img_processing, coord2D_processing, coord3D_processing, smplh_param_processing, obj_param_processing, flip_joint
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from transformers import AutoTokenizer, CLIPTextModel
+
+class TextEncoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        
+        self.model = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32")
+        self.tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-base-patch32")
+        self.out_dim = self.model.text_model.final_layer_norm.normalized_shape[0]
+
+    def forward(self, x: str) -> torch.Tensor:
+        x = self.tokenizer(
+            x,
+            max_length=self.tokenizer.model_max_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        ).input_ids
+
+        x = self.model(x)[0]
+        
+        return x.detach()
 
 class BaseDataset(Dataset):
     def __init__(self):
@@ -20,6 +46,9 @@ class BaseDataset(Dataset):
         self.has_obj_param = False
         self.has_contact = True
         self.load_mask = True
+        
+        self.text_encoder = TextEncoder()
+        self.text_encoder.eval()
 
     def __len__(self):
         # return 2048
@@ -32,6 +61,11 @@ class BaseDataset(Dataset):
         img_path, bbox = data['img_path'], data['bbox']
         img = load_img(img_path)
         img, img2bb_trans, bb2img_trans, rot, do_flip = img_processing(img, bbox, cfg.MODEL.input_img_shape, self.data_split)
+
+        # txt
+        txt_path = data['txt_path']
+        prompt = open(txt_path).readlines()[0].strip()
+        text_embedding = self.text_encoder(prompt)
 
         # h3d_keypoints
         if self.has_human_3d:
@@ -138,13 +172,13 @@ class BaseDataset(Dataset):
             obj_mask = torch.zeros((cfg.MODEL.input_img_shape[0], cfg.MODEL.input_img_shape[1], 2))
 
         if self.data_split == 'train':
-            inputs = {'img': img, 'obj_id': obj_id}
+            inputs = {'img': img, 'obj_id': obj_id, 'text_embedding': text_embedding}
             targets = {'hand_bbox': hand_bbox, 'smpl_pose': smpl_pose, 'smpl_shape': smpl_shape, 'smpl_verts': smpl_verts, 'hp2d_keypoints': hp2d_keypoints, 'h2d_keypoints': h2d_keypoints, 'h3d_keypoints': h3d_keypoints,
                         'obj_pose': obj_pose, 'obj_trans': obj_trans, 'obj_verts': obj_verts,
                         'h_contacts': h_contacts, 'o_contacts': o_contacts}
             meta_info = {'has_smpl_param': has_smpl_param, 'has_obj_param': has_obj_param, 'ann_id': data['ann_id'], 'bbox':bbox, 'obj_name': obj_name, 'gender': gender}
         else:
-            inputs = {'img': img, 'obj_id': obj_id}
+            inputs = {'img': img, 'obj_id': obj_id, 'text_embedding': text_embedding}
             targets = {'smpl_mesh_cam': smpl_verts, 'smpl_pose': smpl_pose, 'smpl_shape': smpl_shape, 'h2d_keypoints': h2d_keypoints, 'h3d_keypoints': h3d_keypoints, 
                         'obj_pose': obj_pose, 'obj_trans': obj_trans, 'obj_verts': obj_verts,
                         'h_contacts': h_contacts, 'o_contacts': o_contacts}

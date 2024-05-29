@@ -52,7 +52,8 @@ class BEHAVE(BaseDataset):
             ann = db.anns[aid]
             image_id = ann['image_id']
             img = db.loadImgs(image_id)[0]
-            img_path = osp.join(self.img_dir, img['file_name'])
+            img_path = osp.join(self.img_dir, img['file_name']) # Date07_Sub08_yogamat/t0037.000/k0.color.jpg
+            txt_path = osp.join(self.img_dir, img['file_name'].replace('color.jpg', 'prompt.txt')) # 
 
             bbox = process_bbox(ann['bbox'], (img['height'], img['width']), cfg.MODEL.input_img_shape, expand_ratio=cfg.DATASET.bbox_expand_ratio) 
             if bbox is None: continue
@@ -76,6 +77,7 @@ class BEHAVE(BaseDataset):
                 'ann_id': aid,
                 'img_id': image_id,
                 'img_path': img_path,
+                'txt_path': txt_path,
                 'img_shape': (img['height'], img['width']),
                 'bbox': bbox,
                 'h2d_keypoints': h2d_keypoints, 
