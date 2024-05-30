@@ -64,7 +64,8 @@ class CONTHO(nn.Module):
         obj_coord_xy = (obj_verts_proj[...,:2].detach() + 0.5) * img_feat.shape[-1]
         obj_feat = sample_joint_features(img_feat, obj_coord_xy)
 
-        text_embedding = inputs['text_embedding'].squeeze()
+        text_embedding = inputs['text_embedding']
+        text_embedding = text_embedding.squeeze() if len(text_embedding.shape) == 4 else text_embedding
 
         # ContactFormer
         human_tokens, object_tokens, h_contacts, o_contacts = self.contactformer(human_verts.detach(), obj_verts.detach(), human_feat, obj_feat, text_embedding)

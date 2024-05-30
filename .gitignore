@@ -19,6 +19,7 @@ data/*/annotations
 data/base_data
 data/preprocessed_data
 experiment
+behave_demo/
 
 # Distribution / packaging
 .Python
